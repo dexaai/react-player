@@ -1,10 +1,11 @@
 import React, { Component } from 'react'
-import { getSDK, callPlayer } from '../utils'
+import { getSDK, callPlayer, randomString, parseStartTime, addQueryParam } from '../utils'
 import { canPlay } from '../patterns'
 
 const SDK_URL = 'https://open.spotify.com/embed-podcast/iframe-api/v1'
 const SDK_GLOBAL = 'SpotifyIframeApi'
 const SDK_GLOBAL_READY = 'SpotifyIframeApi'
+const PLAYER_ID_PREFIX = "spotify-player-"
 
 export default class Spotify extends Component {
   static displayName = 'Spotify'
@@ -15,6 +16,7 @@ export default class Spotify extends Component {
   currentTime = null
   totalTime = null
   player = null
+  playerID = this.props.config.playerId || `${PLAYER_ID_PREFIX}${randomString()}`
 
   componentDidMount () {
     this.props.onMount && this.props.onMount(this)
@@ -26,6 +28,11 @@ export default class Spotify extends Component {
       return
     } else if (this.player) {
       this.callPlayer('loadUri', this.props.url)
+      const iframe = document
+        .getElementById(this.playerID)
+        .getElementsByTagName("iframe")[0]
+      const startTime = parseStartTime(url);
+      this.injectStartingTimestamp(iframe, startTime);
       return
     }
 
@@ -42,7 +49,8 @@ export default class Spotify extends Component {
     const options = {
       width: '100%',
       height: '100%',
-      uri: url
+      uri: url,
+      theme: this.props.theme ? this.props.theme : "light",
     }
     const callback = (EmbedController) => {
       this.player = EmbedController
@@ -50,6 +58,21 @@ export default class Spotify extends Component {
       this.player.addListener('ready', this.props.onReady)
     }
     IFrameAPI.createController(this.container, options, callback)
+    const iframe = document
+      .getElementById(this.playerID)
+      .getElementsByTagName("iframe")[0]
+    const startTime = parseStartTime(url);
+    this.injectStartingTimestamp(iframe, startTime);
+  };
+
+  //this is a hack to inject the iframe with a new url that includes the starting time
+  //see https://community.spotify.com/t5/Spotify-for-Developers/iframe-API-startAt-bug/td-p/5661113 
+  injectStartingTimestamp = (iframe, timestamp) => {
+    if (timestamp && timestamp !== 0) {
+      const timestampParam = "t";
+      const injectedUrl = addQueryParam(iframe.src, timestampParam, timestamp);
+      iframe.src = injectedUrl;
+    }
   }
 
   onStateChange = (event) => {
@@ -132,7 +155,7 @@ export default class Spotify extends Component {
       height: '100%'
     }
     return (
-      <div style={style}>
+      <div id={this.playerID} style={style}>
         <div ref={this.ref} />
       </div>
     )

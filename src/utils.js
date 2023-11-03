@@ -58,6 +58,18 @@ export function queryString (object) {
     .join('&')
 }
 
+export function addQueryParam (url, param, value) {
+  const urlObject = new URL(url);
+
+  if (urlObject.searchParams.has(param)) {
+    urlObject.searchParams.set(param, value);
+  } else {
+    urlObject.searchParams.append(param, value);
+  }
+  
+  return urlObject.href;
+}
+
 function getGlobal (key) {
   if (window[key]) {
     return window[key]
